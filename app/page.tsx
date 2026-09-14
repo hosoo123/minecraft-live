@@ -39,6 +39,11 @@ export default function Home() {
     uid = useRef(0),
     frame = useRef(0),
     depthRef = useRef(0),
+    scrollY = useRef(0),
+    scrollRows = useRef(0),
+    soundRef = useRef(false),
+    audioRef = useRef<AudioContext | null>(null),
+    lastSound = useRef(0),
     assets = useRef<Record<string, HTMLImageElement>>({}),
     playerPoints = useRef<Record<string, number>>({});
   const [score, setScore] = useState(0),
@@ -50,6 +55,15 @@ export default function Home() {
     [leaders, setLeaders] = useState<Leader[]>([]),
     [feed, setFeed] = useState<string[]>([]),
     [raid, setRaid] = useState(20);
+  const toggleSound = () => {
+    const next = !soundRef.current;
+    soundRef.current = next;
+    setSound(next);
+    if (next) {
+      audioRef.current ||= new AudioContext();
+      void audioRef.current.resume();
+    }
+  };
   const makeRow = useCallback(
     (row: number) =>
       Array.from({ length: 8 }, (_, x) => {
@@ -150,7 +164,21 @@ export default function Home() {
     if (!ctx) return;
     canvas.width = 450;
     canvas.height = 800;
+    const play = (kind: "hit" | "break" | "boom") => {
+      const audio = audioRef.current;
+      if (!soundRef.current || !audio || (kind === "hit" && performance.now() - lastSound.current < 70)) return;
+      lastSound.current = performance.now();
+      const osc = audio.createOscillator(), gain = audio.createGain();
+      osc.connect(gain); gain.connect(audio.destination);
+      osc.type = kind === "hit" ? "square" : "sawtooth";
+      osc.frequency.setValueAtTime(kind === "hit" ? 115 : kind === "break" ? 360 : 75, audio.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(kind === "boom" ? 28 : 70, audio.currentTime + 0.14);
+      gain.gain.setValueAtTime(kind === "boom" ? 0.12 : 0.055, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + (kind === "boom" ? 0.32 : 0.15));
+      osc.start(); osc.stop(audio.currentTime + (kind === "boom" ? 0.33 : 0.16));
+    };
     const hit = (d: Drop) => {
+      if (scrollRows.current) return false;
       const top = 285,
         row = Math.floor((d.y - top) / 50),
         col = Math.floor(d.x / 56.25);
@@ -161,6 +189,7 @@ export default function Home() {
       const damage = d.type === "tnt" ? 8 : 1;
       cell.hp -= damage;
       cell.crack = 1 - cell.hp / cell.max;
+      play(d.type === "tnt" ? "boom" : cell.hp <= 0 ? "break" : "hit");
       setScore((s) => s + damage * 10);
       setCombo((c) => Math.min(99, c + 1));
       if (cell.hp <= 0) {
@@ -233,7 +262,7 @@ export default function Home() {
         row.forEach((c, x) => {
           if (c.hp <= 0) return;
           const px = x * 56.25,
-            py = top + r * 50,
+            py = top + r * 50 + scrollY.current,
             texture =
               c.kind === 9
                 ? "bedrock"
@@ -273,31 +302,26 @@ export default function Home() {
         if (shaftOpen) cleared++;
         else break;
       }
-      if (cleared) {
-        grid.current.splice(0, cleared);
-        for (let i = 0; i < cleared; i++) {
-          const target = depthRef.current + cleared + 13 + i;
-          grid.current.push(
-            target % 25 === 0
-              ? makeRow(target).map((c) => ({
-                  ...c,
-                  hp: 24,
-                  max: 24,
-                  kind: 9,
-                  ore: -1,
-                }))
-              : makeRow(target),
-          );
+      if (cleared && !scrollRows.current) {
+        scrollRows.current = cleared;
+        setEvent(cleared >= 2 ? "🔥 DEEP DROP!" : "⬇ SMOOTH DESCENT");
+      }
+      if (scrollRows.current) {
+        const targetOffset = -50 * scrollRows.current;
+        scrollY.current += (targetOffset - scrollY.current) * 0.14;
+        if (Math.abs(targetOffset - scrollY.current) < 0.7) {
+          const rows = scrollRows.current;
+          grid.current.splice(0, rows);
+          for (let i = 0; i < rows; i++) {
+            const target = depthRef.current + rows + 13 + i;
+            grid.current.push(target % 25 === 0 ? makeRow(target).map((c) => ({ ...c, hp: 24, max: 24, kind: 9, ore: -1 })) : makeRow(target));
+          }
+          depthRef.current += rows;
+          setDepth(depthRef.current);
+          if (depthRef.current % 25 === 0) setEvent("☠ BEDROCK BOSS!");
+          scrollY.current = 0;
+          scrollRows.current = 0;
         }
-        depthRef.current += cleared;
-        setDepth(depthRef.current);
-        setEvent(
-          depthRef.current % 25 === 0
-            ? "☠ BEDROCK BOSS!"
-            : cleared >= 2
-              ? "🔥 DOUBLE DEPTH!"
-              : "⬇ CAVE DESCENT",
-        );
       }
       for (const d of drops.current) {
         d.vy = Math.min(d.vy + 0.16, 8);
@@ -331,7 +355,7 @@ export default function Home() {
             <small>DEPTH</small>
             <b>{depth}m</b>
           </div>
-          <button onClick={() => setSound((v) => !v)}>
+          <button onClick={toggleSound} title={sound ? "Sound on" : "Sound off"}>
             {sound ? "🔊" : "🔇"}
           </button>
         </header>
