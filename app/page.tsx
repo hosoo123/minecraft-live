@@ -63,6 +63,18 @@ export default function Home() {
     if (next) {
       audioRef.current ||= new AudioContext();
       void audioRef.current.resume();
+      const audio = audioRef.current;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.type = "square";
+      osc.frequency.setValueAtTime(440, audio.currentTime);
+      osc.frequency.setValueAtTime(660, audio.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.22, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
+      osc.start();
+      osc.stop(audio.currentTime + 0.23);
     }
   };
   useEffect(() => setMounted(true), []);
@@ -175,9 +187,9 @@ export default function Home() {
       osc.type = kind === "hit" ? "square" : "sawtooth";
       osc.frequency.setValueAtTime(kind === "hit" ? 115 : kind === "break" ? 360 : 75, audio.currentTime);
       osc.frequency.exponentialRampToValueAtTime(kind === "boom" ? 28 : 70, audio.currentTime + 0.14);
-      gain.gain.setValueAtTime(kind === "boom" ? 0.12 : 0.055, audio.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + (kind === "boom" ? 0.32 : 0.15));
-      osc.start(); osc.stop(audio.currentTime + (kind === "boom" ? 0.33 : 0.16));
+      gain.gain.setValueAtTime(kind === "boom" ? 0.32 : kind === "break" ? 0.2 : 0.16, audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + (kind === "boom" ? 0.48 : 0.22));
+      osc.start(); osc.stop(audio.currentTime + (kind === "boom" ? 0.5 : 0.23));
     };
     const hit = (d: Drop) => {
       if (scrollRows.current) return false;
