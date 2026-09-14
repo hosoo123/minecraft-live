@@ -21,6 +21,7 @@ type Cell = {
   crack: number;
 };
 type Leader = { name: string; points: number };
+type Weather = "clear" | "rain" | "snow";
 const NAMES = [
     "Ariuka",
     "Temuulen",
@@ -44,7 +45,9 @@ export default function Home() {
     soundRef = useRef(false),
     audioRef = useRef<AudioContext | null>(null),
     audioFiles = useRef<Record<string, HTMLAudioElement>>({}),
+    ambienceRef = useRef<HTMLAudioElement | null>(null),
     lastSound = useRef(0),
+    weatherRef = useRef<Weather>("clear"),
     assets = useRef<Record<string, HTMLImageElement>>({}),
     playerPoints = useRef<Record<string, number>>({});
   const [score, setScore] = useState(0),
@@ -56,11 +59,36 @@ export default function Home() {
     [leaders, setLeaders] = useState<Leader[]>([]),
     [feed, setFeed] = useState<string[]>([]),
     [raid, setRaid] = useState(20),
-    [mounted, setMounted] = useState(false);
+    [mounted, setMounted] = useState(false),
+    [weather, setWeather] = useState<Weather>("clear");
+  const changeWeather = (next: Weather) => {
+    weatherRef.current = next;
+    setWeather(next);
+    setEvent(
+      next === "rain"
+        ? "🌧 RAIN STORM"
+        : next === "snow"
+          ? "❄ SNOW BIOME"
+          : "☀ CLEAR SKY",
+    );
+    ambienceRef.current?.pause();
+    ambienceRef.current = null;
+    if (next === "rain" && soundRef.current) {
+      const rain = new Audio("/sounds/rain.ogg");
+      rain.loop = true;
+      rain.volume = 0.42;
+      ambienceRef.current = rain;
+      void rain.play().catch(() => undefined);
+    }
+  };
   const toggleSound = () => {
     const next = !soundRef.current;
     soundRef.current = next;
     setSound(next);
+    if (!next) {
+      ambienceRef.current?.pause();
+      ambienceRef.current = null;
+    }
     if (next) {
       audioRef.current ||= new AudioContext();
       void audioRef.current.resume();
@@ -82,6 +110,7 @@ export default function Home() {
         test.volume = 0.8;
         void test.play();
       }
+      if (weatherRef.current === "rain") changeWeather("rain");
     }
   };
   useEffect(() => setMounted(true), []);
@@ -152,10 +181,15 @@ export default function Home() {
       "copper_pickaxe",
       "diamond_pickaxe",
       "netherite_pickaxe",
+      "cave_background",
+      "snow",
     ];
     for (const file of files) {
       const img = new Image();
-      img.src = `/assets/${file}.png`;
+      img.src =
+        file === "cave_background"
+          ? "/assets/cave_background.webp"
+          : `/assets/${file}.png`;
       img.onload = () => {
         assets.current[file] = img;
       };
@@ -177,10 +211,22 @@ export default function Home() {
       1000,
     );
     const c = setInterval(() => setCombo((v) => Math.max(1, v - 1)), 1800);
+    const w = setInterval(
+      () =>
+        changeWeather(
+          weatherRef.current === "clear"
+            ? "rain"
+            : weatherRef.current === "rain"
+              ? "snow"
+              : "clear",
+        ),
+      22000,
+    );
     return () => {
       clearInterval(t);
       clearInterval(r);
       clearInterval(c);
+      clearInterval(w);
     };
   }, [makeRow, spawn]);
   useEffect(() => {
@@ -199,16 +245,36 @@ export default function Home() {
         return;
       }
       const audio = audioRef.current;
-      if (!soundRef.current || !audio || (kind === "hit" && performance.now() - lastSound.current < 70)) return;
+      if (
+        !soundRef.current ||
+        !audio ||
+        (kind === "hit" && performance.now() - lastSound.current < 70)
+      )
+        return;
       lastSound.current = performance.now();
-      const osc = audio.createOscillator(), gain = audio.createGain();
-      osc.connect(gain); gain.connect(audio.destination);
+      const osc = audio.createOscillator(),
+        gain = audio.createGain();
+      osc.connect(gain);
+      gain.connect(audio.destination);
       osc.type = kind === "hit" ? "square" : "sawtooth";
-      osc.frequency.setValueAtTime(kind === "hit" ? 115 : kind === "break" ? 360 : 75, audio.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(kind === "boom" ? 28 : 70, audio.currentTime + 0.14);
-      gain.gain.setValueAtTime(kind === "boom" ? 0.32 : kind === "break" ? 0.2 : 0.16, audio.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + (kind === "boom" ? 0.48 : 0.22));
-      osc.start(); osc.stop(audio.currentTime + (kind === "boom" ? 0.5 : 0.23));
+      osc.frequency.setValueAtTime(
+        kind === "hit" ? 115 : kind === "break" ? 360 : 75,
+        audio.currentTime,
+      );
+      osc.frequency.exponentialRampToValueAtTime(
+        kind === "boom" ? 28 : 70,
+        audio.currentTime + 0.14,
+      );
+      gain.gain.setValueAtTime(
+        kind === "boom" ? 0.32 : kind === "break" ? 0.2 : 0.16,
+        audio.currentTime,
+      );
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audio.currentTime + (kind === "boom" ? 0.48 : 0.22),
+      );
+      osc.start();
+      osc.stop(audio.currentTime + (kind === "boom" ? 0.5 : 0.23));
     };
     const hit = (d: Drop) => {
       if (scrollRows.current) return false;
@@ -287,6 +353,41 @@ export default function Home() {
       g.addColorStop(1, "#080b16");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 450, 800);
+      const background = assets.current.cave_background;
+      if (background) {
+        ctx.globalAlpha = weatherRef.current === "clear" ? 0.72 : 0.38;
+        ctx.drawImage(background, 0, 0, 450, 285);
+        ctx.globalAlpha = 1;
+      }
+      if (weatherRef.current === "rain") {
+        ctx.fillStyle = "rgba(12,24,42,.46)";
+        ctx.fillRect(0, 0, 450, 800);
+        ctx.strokeStyle = "rgba(150,205,255,.65)";
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 75; i++) {
+          const x = ((i * 83 + performance.now() * 0.23) % 500) - 25;
+          const y = (i * 47 + performance.now() * 0.62) % 800;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x - 7, y + 19);
+          ctx.stroke();
+        }
+      }
+      if (weatherRef.current === "snow") {
+        ctx.fillStyle = "rgba(185,220,245,.16)";
+        ctx.fillRect(0, 0, 450, 800);
+        ctx.fillStyle = "#fff";
+        for (let i = 0; i < 65; i++) {
+          const x =
+            (i * 97 +
+              Math.sin(i) * 20 +
+              performance.now() * 0.025 * ((i % 3) + 1)) %
+            460;
+          const y = (i * 61 + performance.now() * 0.075 * ((i % 4) + 1)) % 800;
+          const size = 2 + (i % 3);
+          ctx.fillRect(x, y, size, size);
+        }
+      }
       ctx.fillStyle = "#ffffff08";
       for (let i = 0; i < 30; i++)
         ctx.fillRect((i * 97) % 450, (i * 53) % 270, 2, 2);
@@ -311,6 +412,15 @@ export default function Home() {
           }
           ctx.strokeStyle = "#1119";
           ctx.strokeRect(px + 0.5, py + 0.5, 55.25, 49);
+          const aboveOpen = r === 0 || grid.current[r - 1][x].hp <= 0;
+          if (weatherRef.current === "snow" && aboveOpen) {
+            const snow = assets.current.snow;
+            if (snow) ctx.drawImage(snow, px, py - 2, 57, 9);
+            else {
+              ctx.fillStyle = "#f5fbff";
+              ctx.fillRect(px, py - 2, 57, 8);
+            }
+          }
           if (c.crack > 0.15) {
             ctx.strokeStyle = `rgba(10,12,17,${Math.min(0.95, c.crack + 0.2)})`;
             ctx.lineWidth = 3;
@@ -324,13 +434,21 @@ export default function Home() {
           }
         }),
       );
+      const bedrock = assets.current.bedrock;
+      if (bedrock) {
+        ctx.imageSmoothingEnabled = false;
+        for (let y = 250; y < 800; y += 32) {
+          ctx.drawImage(bedrock, 0, y, 34, 34);
+          ctx.drawImage(bedrock, 34, y, 34, 34);
+          ctx.drawImage(bedrock, 382, y, 34, 34);
+          ctx.drawImage(bedrock, 416, y, 34, 34);
+        }
+      }
       let cleared = 0;
       for (const row of grid.current) {
         const shaftOpen = row.some(
           (cell, index) =>
-            index < row.length - 1 &&
-            cell.hp <= 0 &&
-            row[index + 1].hp <= 0,
+            index < row.length - 1 && cell.hp <= 0 && row[index + 1].hp <= 0,
         );
         if (shaftOpen) cleared++;
         else break;
@@ -347,7 +465,17 @@ export default function Home() {
           grid.current.splice(0, rows);
           for (let i = 0; i < rows; i++) {
             const target = depthRef.current + rows + 13 + i;
-            grid.current.push(target % 25 === 0 ? makeRow(target).map((c) => ({ ...c, hp: 24, max: 24, kind: 9, ore: -1 })) : makeRow(target));
+            grid.current.push(
+              target % 25 === 0
+                ? makeRow(target).map((c) => ({
+                    ...c,
+                    hp: 24,
+                    max: 24,
+                    kind: 9,
+                    ore: -1,
+                  }))
+                : makeRow(target),
+            );
           }
           depthRef.current += rows;
           setDepth(depthRef.current);
@@ -389,7 +517,10 @@ export default function Home() {
             <small>DEPTH</small>
             <b>{depth}m</b>
           </div>
-          <button onClick={toggleSound} title={sound ? "Sound on" : "Sound off"}>
+          <button
+            onClick={toggleSound}
+            title={sound ? "Sound on" : "Sound off"}
+          >
             {sound ? "🔊" : "🔇"}
           </button>
         </header>
@@ -399,6 +530,26 @@ export default function Home() {
             MINE <em>RUSH</em>
           </strong>
           <span>LIKE = PICKAXE　•　SUB = TNT</span>
+        </div>
+        <div className="weatherControl">
+          <button
+            className={weather === "clear" ? "active" : ""}
+            onClick={() => changeWeather("clear")}
+          >
+            ☀
+          </button>
+          <button
+            className={weather === "rain" ? "active" : ""}
+            onClick={() => changeWeather("rain")}
+          >
+            🌧
+          </button>
+          <button
+            className={weather === "snow" ? "active" : ""}
+            onClick={() => changeWeather("snow")}
+          >
+            ❄
+          </button>
         </div>
         <aside>
           {ORES.map((o, i) => (

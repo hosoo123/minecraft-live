@@ -161,8 +161,92 @@ body {
   transform: rotate(45deg);
   box-shadow: inset 2px 2px #fff5;
 }
-.liveGame aside img{width:17px;height:17px;image-rendering:pixelated}
-.leaderboard{position:absolute;z-index:6;right:2.5%;top:34%;width:118px;background:#06111be8;border:1px solid #ffd83d77;box-shadow:0 3px #0008}.leaderboard h3{margin:0;padding:5px 6px;background:#6d4500;color:#ffe365;font-size:8px}.leaderboard div{display:grid;grid-template-columns:19px 1fr auto;gap:3px;padding:4px 5px;border-top:1px solid #ffffff12;font-size:7px}.leaderboard div>b{color:#ffe248}.leaderboard span{overflow:hidden;text-overflow:ellipsis}.leaderboard em{color:#62e8ff;font-style:normal;font-weight:900}.activity{position:absolute;z-index:6;right:2.5%;top:47%;display:flex;flex-direction:column;align-items:flex-end;gap:2px}.activity span{background:#071321cc;border-right:2px solid #42dfff;padding:3px 5px;font-size:7px;color:#d9f8ff;animation:feedIn .35s ease}.raidTimer{position:absolute;z-index:6;left:50%;transform:translateX(-50%);top:19%;white-space:nowrap;background:#5b2500dd;border:1px solid #ffca3a;padding:4px 9px;color:#ffd94d;font-size:8px;font-weight:1000}.raidTimer b{color:#fff}.liveGame aside i{display:none}@keyframes feedIn{from{opacity:0;transform:translateX(18px)}}
+.liveGame aside img {
+  width: 17px;
+  height: 17px;
+  image-rendering: pixelated;
+}
+.leaderboard {
+  position: absolute;
+  z-index: 6;
+  right: 2.5%;
+  top: 34%;
+  width: 118px;
+  background: #06111be8;
+  border: 1px solid #ffd83d77;
+  box-shadow: 0 3px #0008;
+}
+.leaderboard h3 {
+  margin: 0;
+  padding: 5px 6px;
+  background: #6d4500;
+  color: #ffe365;
+  font-size: 8px;
+}
+.leaderboard div {
+  display: grid;
+  grid-template-columns: 19px 1fr auto;
+  gap: 3px;
+  padding: 4px 5px;
+  border-top: 1px solid #ffffff12;
+  font-size: 7px;
+}
+.leaderboard div > b {
+  color: #ffe248;
+}
+.leaderboard span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leaderboard em {
+  color: #62e8ff;
+  font-style: normal;
+  font-weight: 900;
+}
+.activity {
+  position: absolute;
+  z-index: 6;
+  right: 2.5%;
+  top: 47%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.activity span {
+  background: #071321cc;
+  border-right: 2px solid #42dfff;
+  padding: 3px 5px;
+  font-size: 7px;
+  color: #d9f8ff;
+  animation: feedIn 0.35s ease;
+}
+.raidTimer {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 19%;
+  white-space: nowrap;
+  background: #5b2500dd;
+  border: 1px solid #ffca3a;
+  padding: 4px 9px;
+  color: #ffd94d;
+  font-size: 8px;
+  font-weight: 1000;
+}
+.raidTimer b {
+  color: #fff;
+}
+.liveGame aside i {
+  display: none;
+}
+@keyframes feedIn {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
 .liveGame aside span {
   font-size: 7px;
   font-weight: 900;
@@ -269,6 +353,37 @@ body {
 .liveGame nav button:active {
   transform: translateY(3px);
   box-shadow: 0 1px #000;
+}
+.weatherControl {
+  position: absolute;
+  z-index: 9;
+  top: 14.8%;
+  left: 50%;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  transform: translateX(-50%);
+  border: 1px solid #ffffff24;
+  border-radius: 4px;
+  background: #06111bdd;
+  box-shadow: 0 3px 10px #0008;
+}
+.weatherControl button {
+  width: 28px;
+  height: 23px;
+  padding: 0;
+  cursor: pointer;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: #162637;
+  opacity: 0.55;
+}
+.weatherControl button.active {
+  border-color: #69e6ff;
+  background: #244866;
+  box-shadow: 0 0 9px #43dfff66;
+  opacity: 1;
 }
 @keyframes pulse {
   50% {
