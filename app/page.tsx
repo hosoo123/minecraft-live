@@ -54,7 +54,8 @@ export default function Home() {
     [count, setCount] = useState([0, 0, 0, 0, 0, 0]),
     [leaders, setLeaders] = useState<Leader[]>([]),
     [feed, setFeed] = useState<string[]>([]),
-    [raid, setRaid] = useState(20);
+    [raid, setRaid] = useState(20),
+    [mounted, setMounted] = useState(false);
   const toggleSound = () => {
     const next = !soundRef.current;
     soundRef.current = next;
@@ -64,6 +65,7 @@ export default function Home() {
       void audioRef.current.resume();
     }
   };
+  useEffect(() => setMounted(true), []);
   const makeRow = useCallback(
     (row: number) =>
       Array.from({ length: 8 }, (_, x) => {
@@ -337,7 +339,8 @@ export default function Home() {
     };
     loop();
     return () => cancelAnimationFrame(frame.current);
-  }, [makeRow]);
+  }, [makeRow, mounted]);
+  if (!mounted) return null;
   return (
     <main className="shell">
       <section className="liveGame">
