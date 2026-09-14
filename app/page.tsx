@@ -19,10 +19,10 @@ type Fx={id:number;x:number;y:number;text:string;kind:string};
 export default function Home(){
   const [level,setLevel]=useState(0),[hp,setHp]=useState(blocks[0].hp),[score,setScore]=useState(2200),[hits,setHits]=useState(0),[combo,setCombo]=useState(1);
   const [tool,setTool]=useState<"idle"|"drop"|"hit"|"return">("idle"),[boom,setBoom]=useState<""|"tnt"|"nuke">(""),[flash,setFlash]=useState(false),[fx,setFx]=useState<Fx[]>([]);
-  const busy=useRef(false),levelRef=useRef(0),comboTimer=useRef<number|undefined>(undefined);
+  const busy=useRef(false),levelRef=useRef(0),comboTimer=useRef<number|undefined>(undefined),particleId=useRef(0);
   const block=blocks[level%blocks.length],nextBlock=blocks[(level+1)%blocks.length];
   useEffect(()=>{levelRef.current=level},[level]);
-  const particles=useCallback((text:string,kind="hit")=>{const id=Date.now();const batch=Array.from({length:kind==="nuke"?18:8},(_,i)=>({id:id+i,x:30+Math.random()*40,y:48+Math.random()*12,text:i===0?text:kind==="nuke"?"✦":"■",kind}));setFx(o=>[...o,...batch]);setTimeout(()=>setFx(o=>o.filter(p=>p.id<id)),900)},[]);
+  const particles=useCallback((text:string,kind="hit")=>{const batch=Array.from({length:kind==="nuke"?18:8},(_,i)=>({id:++particleId.current,x:30+Math.random()*40,y:48+Math.random()*12,text:i===0?text:kind==="nuke"?"✦":"■",kind}));const ids=new Set(batch.map(p=>p.id));setFx(o=>[...o,...batch]);setTimeout(()=>setFx(o=>o.filter(p=>!ids.has(p.id))),900)},[]);
   const damage=useCallback((amount:number,source="hit")=>{setHp(current=>{const currentBlock=blocks[levelRef.current%blocks.length],left=current-amount;setScore(s=>s+Math.min(amount,current));setHits(h=>h+1);setCombo(c=>Math.min(c+1,99));clearTimeout(comboTimer.current);comboTimer.current=window.setTimeout(()=>setCombo(1),2600);particles(`-${Math.min(amount,current)}`,source);if(left>0)return left;setFlash(true);setTimeout(()=>setFlash(false),260);const next=levelRef.current+1;levelRef.current=next;setLevel(next);setScore(s=>s+currentBlock.reward);return blocks[next%blocks.length].hp})},[particles]);
   const dropPickaxe=useCallback((amount=35)=>{if(busy.current)return;busy.current=true;setTool("drop");setTimeout(()=>{setTool("hit");damage(amount)},520);setTimeout(()=>setTool("return"),690);setTimeout(()=>{setTool("idle");busy.current=false},1050)},[damage]);
   const explode=useCallback((kind:"tnt"|"nuke",amount:number)=>{if(boom)return;setBoom(kind);setTimeout(()=>damage(amount,kind),kind==="nuke"?650:450);setTimeout(()=>setBoom(""),kind==="nuke"?1250:850)},[boom,damage]);
