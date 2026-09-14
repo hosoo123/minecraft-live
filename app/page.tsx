@@ -46,8 +46,9 @@ export default function Home() {
     audioRef = useRef<AudioContext | null>(null),
     audioFiles = useRef<Record<string, HTMLAudioElement>>({}),
     ambienceRef = useRef<HTMLAudioElement | null>(null),
-    lastSound = useRef(0),
+    lastSound = useRef<Record<string, number>>({}),
     weatherRef = useRef<Weather>("clear"),
+    weatherStarted = useRef(0),
     assets = useRef<Record<string, HTMLImageElement>>({}),
     playerPoints = useRef<Record<string, number>>({});
   const [score, setScore] = useState(0),
@@ -58,12 +59,11 @@ export default function Home() {
     [count, setCount] = useState([0, 0, 0, 0, 0, 0]),
     [leaders, setLeaders] = useState<Leader[]>([]),
     [feed, setFeed] = useState<string[]>([]),
-    [raid, setRaid] = useState(20),
-    [mounted, setMounted] = useState(false),
-    [weather, setWeather] = useState<Weather>("clear");
+    [raid, setRaid] = useState(45),
+    [mounted, setMounted] = useState(false);
   const changeWeather = (next: Weather) => {
     weatherRef.current = next;
-    setWeather(next);
+    weatherStarted.current = performance.now();
     setEvent(
       next === "rain"
         ? "🌧 RAIN STORM"
@@ -76,7 +76,7 @@ export default function Home() {
     if (next === "rain" && soundRef.current) {
       const rain = new Audio("/sounds/rain.ogg");
       rain.loop = true;
-      rain.volume = 0.42;
+      rain.volume = 0.14;
       ambienceRef.current = rain;
       void rain.play().catch(() => undefined);
     }
@@ -100,14 +100,14 @@ export default function Home() {
       osc.type = "square";
       osc.frequency.setValueAtTime(440, audio.currentTime);
       osc.frequency.setValueAtTime(660, audio.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.22, audio.currentTime);
+      gain.gain.setValueAtTime(0.07, audio.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
       osc.start();
       osc.stop(audio.currentTime + 0.23);
       const sample = audioFiles.current.hit;
       if (sample) {
         const test = sample.cloneNode(true) as HTMLAudioElement;
-        test.volume = 0.8;
+        test.volume = 0.22;
         void test.play();
       }
       if (weatherRef.current === "rain") changeWeather("rain");
@@ -128,7 +128,7 @@ export default function Home() {
   );
   const spawn = useCallback(
     (type: "pick" | "tnt" | "mega" = "pick", forcedName?: string) => {
-      const amount = type === "mega" ? 9 : type === "tnt" ? 3 : 1,
+      const amount = type === "mega" ? 5 : type === "tnt" ? 3 : 1,
         name = forcedName || NAMES[Math.floor(Math.random() * NAMES.length)],
         points = type === "mega" ? 90 : type === "tnt" ? 30 : 10;
       for (let i = 0; i < amount; i++)
@@ -142,7 +142,7 @@ export default function Home() {
           rot: Math.random() * 6.2,
           vr: (Math.random() - 0.5) * 0.16,
           life: 900,
-          name,
+          name: i === 0 ? name : "",
           tier: Math.min(
             3,
             Math.floor(Math.random() * (1 + depthRef.current / 8)),
@@ -155,7 +155,7 @@ export default function Home() {
           .sort((a, b) => b.points - a.points)
           .slice(0, 3),
       );
-      setFeed((f) => [`${name}  +${points} XP`, ...f].slice(0, 3));
+      setFeed((f) => [`${name}  +${points} XP`, ...f].slice(0, 2));
       setEvent(
         type === "mega"
           ? "⚡ PICKAXE STORM!"
@@ -200,13 +200,13 @@ export default function Home() {
       audioFiles.current[file] = audio;
     }
     grid.current = Array.from({ length: 13 }, (_, r) => makeRow(r));
-    const t = setInterval(() => spawn("pick"), 1250);
+    const t = setInterval(() => spawn("pick"), 1650);
     const r = setInterval(
       () =>
         setRaid((v) => {
           if (v > 1) return v - 1;
           spawn("mega", "LUCKY RAID");
-          return 20;
+          return 45;
         }),
       1000,
     );
@@ -220,7 +220,7 @@ export default function Home() {
               ? "snow"
               : "clear",
         ),
-      22000,
+      28000,
     );
     return () => {
       clearInterval(t);
@@ -237,21 +237,20 @@ export default function Home() {
     canvas.width = 450;
     canvas.height = 800;
     const play = (kind: "hit" | "break" | "boom") => {
+      const now = performance.now();
+      const cooldown = kind === "hit" ? 150 : kind === "break" ? 260 : 650;
+      if (!soundRef.current || now - (lastSound.current[kind] || 0) < cooldown)
+        return;
+      lastSound.current[kind] = now;
       const sample = audioFiles.current[kind];
-      if (soundRef.current && sample) {
+      if (sample) {
         const voice = sample.cloneNode(true) as HTMLAudioElement;
-        voice.volume = kind === "boom" ? 1 : kind === "break" ? 0.85 : 0.65;
+        voice.volume = kind === "boom" ? 0.34 : kind === "break" ? 0.2 : 0.1;
         void voice.play().catch(() => undefined);
         return;
       }
       const audio = audioRef.current;
-      if (
-        !soundRef.current ||
-        !audio ||
-        (kind === "hit" && performance.now() - lastSound.current < 70)
-      )
-        return;
-      lastSound.current = performance.now();
+      if (!audio) return;
       const osc = audio.createOscillator(),
         gain = audio.createGain();
       osc.connect(gain);
@@ -340,7 +339,7 @@ export default function Home() {
       ctx.fillStyle = "#fff";
       ctx.shadowColor = "#000";
       ctx.shadowBlur = 5;
-      ctx.fillText(d.name, d.x, d.y - 40);
+      if (d.name) ctx.fillText(d.name, d.x, d.y - 40);
       ctx.shadowBlur = 0;
     };
     const loop = () => {
@@ -360,31 +359,24 @@ export default function Home() {
         ctx.globalAlpha = 1;
       }
       if (weatherRef.current === "rain") {
-        ctx.fillStyle = "rgba(12,24,42,.46)";
+        ctx.fillStyle = "rgba(7,16,30,.5)";
         ctx.fillRect(0, 0, 450, 800);
-        ctx.strokeStyle = "rgba(150,205,255,.65)";
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 75; i++) {
-          const x = ((i * 83 + performance.now() * 0.23) % 500) - 25;
-          const y = (i * 47 + performance.now() * 0.62) % 800;
-          ctx.beginPath();
-          ctx.moveTo(x, y);
-          ctx.lineTo(x - 7, y + 19);
-          ctx.stroke();
+        ctx.fillStyle = "rgba(122,180,220,.72)";
+        for (let i = 0; i < 52; i++) {
+          const x = (i * 79 + (i % 4) * 17) % 450;
+          const y = (i * 113 + performance.now() * 0.48) % 820;
+          ctx.fillRect(Math.floor(x), Math.floor(y), 2, 15 + (i % 3) * 5);
         }
       }
       if (weatherRef.current === "snow") {
-        ctx.fillStyle = "rgba(185,220,245,.16)";
+        ctx.fillStyle = "rgba(170,205,226,.2)";
         ctx.fillRect(0, 0, 450, 800);
-        ctx.fillStyle = "#fff";
-        for (let i = 0; i < 65; i++) {
+        for (let i = 0; i < 48; i++) {
           const x =
-            (i * 97 +
-              Math.sin(i) * 20 +
-              performance.now() * 0.025 * ((i % 3) + 1)) %
-            460;
-          const y = (i * 61 + performance.now() * 0.075 * ((i % 4) + 1)) % 800;
-          const size = 2 + (i % 3);
+            (i * 97 + Math.sin(performance.now() * 0.001 + i) * 14) % 460;
+          const y = (i * 61 + performance.now() * 0.055 * ((i % 3) + 1)) % 820;
+          const size = 2 + (i % 2) * 2;
+          ctx.fillStyle = i % 3 ? "#fff" : "#dcefff";
           ctx.fillRect(x, y, size, size);
         }
       }
@@ -415,11 +407,16 @@ export default function Home() {
           const aboveOpen = r === 0 || grid.current[r - 1][x].hp <= 0;
           if (weatherRef.current === "snow" && aboveOpen) {
             const snow = assets.current.snow;
+            ctx.globalAlpha = Math.min(
+              1,
+              (performance.now() - weatherStarted.current) / 9000,
+            );
             if (snow) ctx.drawImage(snow, px, py - 2, 57, 9);
             else {
               ctx.fillStyle = "#f5fbff";
               ctx.fillRect(px, py - 2, 57, 8);
             }
+            ctx.globalAlpha = 1;
           }
           if (c.crack > 0.15) {
             ctx.strokeStyle = `rgba(10,12,17,${Math.min(0.95, c.crack + 0.2)})`;
@@ -531,26 +528,6 @@ export default function Home() {
           </strong>
           <span>LIKE = PICKAXE　•　SUB = TNT</span>
         </div>
-        <div className="weatherControl">
-          <button
-            className={weather === "clear" ? "active" : ""}
-            onClick={() => changeWeather("clear")}
-          >
-            ☀
-          </button>
-          <button
-            className={weather === "rain" ? "active" : ""}
-            onClick={() => changeWeather("rain")}
-          >
-            🌧
-          </button>
-          <button
-            className={weather === "snow" ? "active" : ""}
-            onClick={() => changeWeather("snow")}
-          >
-            ❄
-          </button>
-        </div>
         <aside>
           {ORES.map((o, i) => (
             <div key={o}>
@@ -574,11 +551,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <div className="activity">
-          {feed.map((f, i) => (
-            <span key={`${f}-${i}`}>{f}</span>
-          ))}
-        </div>
         <div className="raidTimer">
           LUCKY RAID IN <b>{raid}s</b>
         </div>
@@ -600,7 +572,7 @@ export default function Home() {
           </button>
           <button onClick={() => spawn("mega", "SUPER CHAT")}>
             ⚡<b>STORM</b>
-            <small>9× PICKAXE</small>
+            <small>5× PICKAXE</small>
           </button>
         </nav>
       </section>
