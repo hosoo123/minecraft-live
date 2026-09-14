@@ -264,7 +264,13 @@ export default function Home() {
       );
       let cleared = 0;
       for (const row of grid.current) {
-        if (row.every((c) => c.hp <= 0)) cleared++;
+        const shaftOpen = row.some(
+          (cell, index) =>
+            index < row.length - 1 &&
+            cell.hp <= 0 &&
+            row[index + 1].hp <= 0,
+        );
+        if (shaftOpen) cleared++;
         else break;
       }
       if (cleared) {
