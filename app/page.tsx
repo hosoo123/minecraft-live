@@ -43,6 +43,7 @@ export default function Home() {
     scrollRows = useRef(0),
     soundRef = useRef(false),
     audioRef = useRef<AudioContext | null>(null),
+    audioFiles = useRef<Record<string, HTMLAudioElement>>({}),
     lastSound = useRef(0),
     assets = useRef<Record<string, HTMLImageElement>>({}),
     playerPoints = useRef<Record<string, number>>({});
@@ -75,6 +76,12 @@ export default function Home() {
       gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.22);
       osc.start();
       osc.stop(audio.currentTime + 0.23);
+      const sample = audioFiles.current.hit;
+      if (sample) {
+        const test = sample.cloneNode(true) as HTMLAudioElement;
+        test.volume = 0.8;
+        void test.play();
+      }
     }
   };
   useEffect(() => setMounted(true), []);
@@ -153,6 +160,11 @@ export default function Home() {
         assets.current[file] = img;
       };
     }
+    for (const file of ["hit", "break", "boom"]) {
+      const audio = new Audio(`/sounds/${file}.wav`);
+      audio.preload = "auto";
+      audioFiles.current[file] = audio;
+    }
     grid.current = Array.from({ length: 13 }, (_, r) => makeRow(r));
     const t = setInterval(() => spawn("pick"), 1250);
     const r = setInterval(
@@ -179,6 +191,13 @@ export default function Home() {
     canvas.width = 450;
     canvas.height = 800;
     const play = (kind: "hit" | "break" | "boom") => {
+      const sample = audioFiles.current[kind];
+      if (soundRef.current && sample) {
+        const voice = sample.cloneNode(true) as HTMLAudioElement;
+        voice.volume = kind === "boom" ? 1 : kind === "break" ? 0.85 : 0.65;
+        void voice.play().catch(() => undefined);
+        return;
+      }
       const audio = audioRef.current;
       if (!soundRef.current || !audio || (kind === "hit" && performance.now() - lastSound.current < 70)) return;
       lastSound.current = performance.now();
