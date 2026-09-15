@@ -23,14 +23,16 @@ type Cell = {
 type Leader = { name: string; points: number };
 type Weather = "clear" | "rain" | "snow";
 const NAMES = [
-    "Ariuka",
-    "Temuulen",
-    "Anu",
-    "Bilguun",
-    "Naraa",
-    "Munkh",
-    "Saraa",
-    "You",
+    "Ariumikka",
+    "you",
+    "андрэй",
+    "keith",
+    "豚さん",
+    "andrew",
+    "dontbody",
+    "imissu",
+    "ささみ",
+    "xiang pe",
   ],
   ORES = ["COAL", "COPPER", "GOLD", "LAPIS", "DIAMOND", "EMERALD"];
 export default function Home() {
