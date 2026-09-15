@@ -51,6 +51,7 @@ export default function Home() {
     lastSound = useRef<Record<string, number>>({}),
     weatherRef = useRef<Weather>("clear"),
     weatherStarted = useRef(0),
+    pageHidden = useRef(false),
     assets = useRef<Record<string, HTMLImageElement>>({}),
     playerPoints = useRef<Record<string, number>>({});
   const [score, setScore] = useState(0),
@@ -123,13 +124,21 @@ export default function Home() {
             Math.random() < 0.22
               ? Math.min(5, Math.floor(row / 7) + Math.floor(Math.random() * 2))
               : -1,
-          max = ore >= 0 ? 4 + ore * 2 : 3 + Math.floor(row / 8);
-        return { hp: max, max, ore, kind: (x + row) % 4, crack: 0 };
+          max = 2,
+          isBedrock = x === 0 || x === 7;
+        return {
+          hp: isBedrock ? 1 : max,
+          max: isBedrock ? 1 : max,
+          ore: isBedrock ? -1 : ore,
+          kind: isBedrock ? 9 : (x + row) % 4,
+          crack: 0,
+        };
       }),
     [],
   );
   const spawn = useCallback(
     (type: "pick" | "tnt" | "mega" = "pick", forcedName?: string) => {
+      if (pageHidden.current) return;
       const amount = type === "mega" ? 5 : type === "tnt" ? 3 : 1,
         name = forcedName || NAMES[Math.floor(Math.random() * NAMES.length)],
         points = type === "mega" ? 90 : type === "tnt" ? 30 : 10;
@@ -169,6 +178,11 @@ export default function Home() {
     [],
   );
   useEffect(() => {
+    const handleVisibility = () => {
+      pageHidden.current = document.hidden;
+    };
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
     const files = [
       "stone",
       "coal_ore",
@@ -229,6 +243,7 @@ export default function Home() {
       clearInterval(r);
       clearInterval(c);
       clearInterval(w);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [makeRow, spawn]);
   useEffect(() => {
@@ -279,13 +294,29 @@ export default function Home() {
     };
     const hit = (d: Drop) => {
       if (scrollRows.current) return false;
+      const halfWidth = d.type === "tnt" ? 28 : 36,
+        leftWall = 56.25,
+        rightWall = 8 * 56.25 - 56.25;
+      if (d.x - halfWidth < leftWall) {
+        d.x = leftWall + halfWidth;
+        d.vx = Math.abs(d.vx) + 0.25;
+        return true;
+      }
+      if (d.x + halfWidth > rightWall) {
+        d.x = rightWall - halfWidth;
+        d.vx = -Math.abs(d.vx) - 0.25;
+        return true;
+      }
       const top = 285,
-        row = Math.floor((d.y - top) / 50),
+        row = Math.floor((d.y + halfWidth - top) / 50),
         col = Math.floor(d.x / 56.25);
       if (row < 0 || row >= grid.current.length || col < 0 || col > 7)
         return false;
-      const cell = grid.current[row]?.[col];
-      if (!cell || cell.hp <= 0) return false;
+      let collisionRow = row;
+      while (collisionRow > 0 && grid.current[collisionRow - 1]?.[col]?.hp > 0)
+        collisionRow--;
+      const cell = grid.current[collisionRow]?.[col];
+      if (!cell || cell.hp <= 0 || cell.kind === 9) return false;
       const damage = d.type === "tnt" ? 8 : 1;
       cell.hp -= damage;
       cell.crack = 1 - cell.hp / cell.max;
@@ -298,13 +329,18 @@ export default function Home() {
         setScore((s) => s + 100 + (cell.ore + 1) * 80);
       }
       if (d.type === "tnt") {
-        for (let ry = Math.max(0, row - 1); ry <= Math.min(12, row + 1); ry++)
+        for (
+          let ry = Math.max(0, collisionRow - 1);
+          ry <= Math.min(12, collisionRow + 1);
+          ry++
+        )
           for (
             let cx = Math.max(0, col - 1);
             cx <= Math.min(7, col + 1);
             cx++
           ) {
             const c = grid.current[ry][cx];
+            if (c.kind === 9) continue;
             c.hp -= 5;
             c.crack = 1 - c.hp / c.max;
           }
@@ -312,7 +348,7 @@ export default function Home() {
       } else {
         d.vy = -Math.abs(d.vy) * 0.48;
         d.vx += (Math.random() - 0.5) * 2;
-        d.y = top + row * 50 - 18;
+        d.y = top + collisionRow * 50 - 18;
         d.life -= 90;
       }
       return true;
@@ -346,6 +382,7 @@ export default function Home() {
     };
     const loop = () => {
       frame.current = requestAnimationFrame(loop);
+      if (pageHidden.current) return;
       ctx.clearRect(0, 0, 450, 800);
       const g = ctx.createLinearGradient(0, 0, 0, 800);
       g.addColorStop(0, "#08172d");
@@ -421,26 +458,52 @@ export default function Home() {
             ctx.globalAlpha = 1;
           }
           if (c.crack > 0.15) {
-            ctx.strokeStyle = `rgba(10,12,17,${Math.min(0.95, c.crack + 0.2)})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(px + 28, py);
-            ctx.lineTo(px + 23, py + 15);
-            ctx.lineTo(px + 35, py + 26);
-            ctx.lineTo(px + 24, py + 40);
-            ctx.lineTo(px + 30, py + 50);
-            ctx.stroke();
+            const crackStage = Math.ceil(c.crack * 3);
+            ctx.save();
+            ctx.strokeStyle = `rgba(8,10,14,${Math.min(0.95, c.crack + 0.25)})`;
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = "square";
+            const cracks = [
+              [
+                [px + 28, py],
+                [px + 24, py + 13],
+                [px + 34, py + 24],
+                [px + 25, py + 39],
+                [px + 30, py + 50],
+              ],
+              [
+                [px + 24, py + 13],
+                [px + 12, py + 9],
+                [px + 5, py + 17],
+              ],
+              [
+                [px + 34, py + 24],
+                [px + 46, py + 19],
+                [px + 54, py + 27],
+              ],
+              [
+                [px + 25, py + 39],
+                [px + 13, py + 43],
+                [px + 6, py + 49],
+              ],
+            ];
+            cracks.slice(0, crackStage + 1).forEach((path) => {
+              ctx.beginPath();
+              path.forEach(([xPoint, yPoint], index) =>
+                index ? ctx.lineTo(xPoint, yPoint) : ctx.moveTo(xPoint, yPoint),
+              );
+              ctx.stroke();
+            });
+            ctx.restore();
           }
         }),
       );
       const bedrock = assets.current.bedrock;
       if (bedrock) {
         ctx.imageSmoothingEnabled = false;
-        for (let y = 250; y < 800; y += 32) {
-          ctx.drawImage(bedrock, 0, y, 34, 34);
-          ctx.drawImage(bedrock, 34, y, 34, 34);
-          ctx.drawImage(bedrock, 382, y, 34, 34);
-          ctx.drawImage(bedrock, 416, y, 34, 34);
+        for (let y = top; y < 800; y += 50) {
+          ctx.drawImage(bedrock, 0, y, 56.25, 51);
+          ctx.drawImage(bedrock, 393.75, y, 56.25, 51);
         }
       }
       let cleared = 0;
@@ -464,17 +527,7 @@ export default function Home() {
           grid.current.splice(0, rows);
           for (let i = 0; i < rows; i++) {
             const target = depthRef.current + rows + 13 + i;
-            grid.current.push(
-              target % 25 === 0
-                ? makeRow(target).map((c) => ({
-                    ...c,
-                    hp: 24,
-                    max: 24,
-                    kind: 9,
-                    ore: -1,
-                  }))
-                : makeRow(target),
-            );
+            grid.current.push(makeRow(target));
           }
           depthRef.current += rows;
           setDepth(depthRef.current);

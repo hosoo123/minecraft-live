@@ -17,8 +17,8 @@ body {
 }
 .liveGame {
   position: relative;
-  width: min(100vw, 540px);
-  height: min(100vh, 960px);
+  width: min(100vw, 540px, calc(100vh * 9 / 16));
+  height: auto;
   aspect-ratio: 9/16;
   overflow: hidden;
   box-shadow:
