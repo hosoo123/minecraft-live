@@ -51,14 +51,14 @@ npm run start
 
 Үзэгчийн action бүр game дээр event үүсгэнэ:
 
-| Stream event | Game action |
-| --- | --- |
-| YouTube like | 1 pickaxe унагана |
-| YouTube subscribe | TNT унагана |
-| Super Chat | Mega pickaxe эсвэл олон TNT унагана |
-| TikTok like | 1 pickaxe унагана |
-| TikTok follow | TNT эсвэл pickaxe унагана |
-| TikTok gift | Gift-ийн үнээс хамаарч TNT/mega event үүсгэнэ |
+| Stream event      | Game action                                   |
+| ----------------- | --------------------------------------------- |
+| YouTube like      | 1 pickaxe унагана                             |
+| YouTube subscribe | TNT унагана                                   |
+| Super Chat        | Mega pickaxe эсвэл олон TNT унагана           |
+| TikTok like       | 1 pickaxe унагана                             |
+| TikTok follow     | TNT эсвэл pickaxe унагана                     |
+| TikTok gift       | Gift-ийн үнээс хамаарч TNT/mega event үүсгэнэ |
 
 Game доторх event mapping-ийн үндсэн санаа:
 
@@ -91,9 +91,9 @@ Bridge нь YouTube/TikTok-ийн event-ийг game-ийн нэг стандар
 
 ```json
 {
-	"type": "like",
-	"name": "viewer123",
-	"amount": 1
+  "type": "like",
+  "name": "viewer123",
+  "amount": 1
 }
 ```
 
@@ -111,9 +111,9 @@ Bridge-ийн event-ийг game action руу хөрвүүлнэ:
 
 ```ts
 type StreamEvent = {
-	type: "like" | "subscribe" | "follow" | "gift" | "superchat";
-	name: string;
-	amount?: number;
+  type: "like" | "subscribe" | "follow" | "gift" | "superchat";
+  name: string;
+  amount?: number;
 };
 ```
 
@@ -121,13 +121,16 @@ type StreamEvent = {
 
 ```ts
 function mapEvent(event: StreamEvent) {
-	if (event.type === "like") return { action: "pick", count: 1 };
-	if (event.type === "subscribe") return { action: "tnt", count: 1 };
-	if (event.type === "follow") return { action: "pick", count: 1 };
-	if (event.type === "gift")
-		return { action: event.amount && event.amount >= 10 ? "mega" : "tnt", count: 1 };
-	if (event.type === "superchat") return { action: "mega", count: 1 };
-	return null;
+  if (event.type === "like") return { action: "pick", count: 1 };
+  if (event.type === "subscribe") return { action: "tnt", count: 1 };
+  if (event.type === "follow") return { action: "pick", count: 1 };
+  if (event.type === "gift")
+    return {
+      action: event.amount && event.amount >= 10 ? "mega" : "tnt",
+      count: 1,
+    };
+  if (event.type === "superchat") return { action: "mega", count: 1 };
+  return null;
 }
 ```
 
@@ -151,8 +154,8 @@ Authorization: Bearer YOUR_BRIDGE_SECRET
 
 ```json
 {
-	"type": "subscribe",
-	"name": "viewer123"
+  "type": "subscribe",
+  "name": "viewer123"
 }
 ```
 
@@ -179,9 +182,9 @@ TikTok event-үүдийг дээрх ижил format руу хөрвүүлнэ:
 
 ```json
 {
-	"type": "gift",
-	"name": "viewer123",
-	"amount": 25
+  "type": "gift",
+  "name": "viewer123",
+  "amount": 25
 }
 ```
 
