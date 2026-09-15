@@ -354,37 +354,6 @@ body {
   transform: translateY(3px);
   box-shadow: 0 1px #000;
 }
-.weatherControl {
-  position: absolute;
-  z-index: 9;
-  top: 14.8%;
-  left: 50%;
-  display: flex;
-  gap: 3px;
-  padding: 3px;
-  transform: translateX(-50%);
-  border: 1px solid #ffffff24;
-  border-radius: 4px;
-  background: #06111bdd;
-  box-shadow: 0 3px 10px #0008;
-}
-.weatherControl button {
-  width: 28px;
-  height: 23px;
-  padding: 0;
-  cursor: pointer;
-  color: #fff;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  background: #162637;
-  opacity: 0.55;
-}
-.weatherControl button.active {
-  border-color: #69e6ff;
-  background: #244866;
-  box-shadow: 0 0 9px #43dfff66;
-  opacity: 1;
-}
 @keyframes pulse {
   50% {
     opacity: 0.3;
